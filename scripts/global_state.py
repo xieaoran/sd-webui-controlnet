@@ -215,7 +215,9 @@ def traverse_all_files(curr_path, model_list):
 
 
 def get_all_models(sort_by, filter_by, path):
-    res = OrderedDict()
+    zen_remote_enabled = shared.opts.zen_remote_enabled
+    print(f"[ControlNET - Get All Models] zen_remote_enabled = {zen_remote_enabled}")
+
     fileinfos = traverse_all_files(path, [])
     filter_by = filter_by.strip(" ")
     if len(filter_by) != 0:
@@ -228,12 +230,27 @@ def get_all_models(sort_by, filter_by, path):
     elif sort_by == "path name":
         fileinfos = sorted(fileinfos)
 
+    res = OrderedDict()
+    if zen_remote_enabled:
+        try:
+            from modules.zen_remote.webui_models import RemoteModelsManager, RemoteModelType
+            manager = RemoteModelsManager()
+            for model in manager.get_remote_models(RemoteModelType.CONTROL_NET):
+                name = os.path.splitext(model.name)[0]
+                if model.store_address:
+                    res[name] = model.store_address
+                else:
+                    res[name] = model.name
+        except Exception as e:
+            print(f"[ControlNET - Get All Models] manager.get_remote_models failed, "
+                  f"skipping remote models, Exception: {e}")
+
     for finfo in fileinfos:
         filename = finfo[0]
         name = os.path.splitext(os.path.basename(filename))[0]
         # Prevent a hypothetical "None.pt" from being listed.
         if name != "None":
-            res[name + f" [{sd_models.model_hash(filename)}]"] = filename
+            res[name] = filename
 
     return res
 
@@ -250,12 +267,20 @@ def update_cn_models():
             "control_net_models_sort_models_by", "name")
         filter_by = shared.opts.data.get("control_net_models_name_filter", "")
         found = get_all_models(sort_by, filter_by, path)
-        cn_models.update({**found, **cn_models})
+
+        for name, filename in found.items():
+            if name in cn_models:
+                if os.path.dirname(filename):
+                    cn_models[name] = filename
+            else:
+                cn_models[name] = filename
 
     # insert "None" at the beginning of `cn_models` in-place
     cn_models_copy = OrderedDict(cn_models)
     cn_models.clear()
     cn_models.update({**{"None": None}, **cn_models_copy})
+
+    print(f"[ControlNET - Get All Models] cn_models = {cn_models}")
 
     cn_models_names.clear()
     for name_and_hash, filename in cn_models.items():

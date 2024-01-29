@@ -180,6 +180,7 @@ tests/web_api/full_coverage/expectations/
 
 # Presets
 presets/
+models/
 
 # Ignore existing dir of hand refiner if exists.
 annotator/hand_refiner_portable

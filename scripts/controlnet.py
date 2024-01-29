@@ -253,11 +253,13 @@ class Script(scripts.Script, metaclass=(
     def uigroup(self, tabname: str, is_img2img: bool, elem_id_tabname: str, photopea: Optional[Photopea]) -> Tuple[ControlNetUiGroup, gr.State]:
         group = ControlNetUiGroup(
             is_img2img,
+            tabname,
+            elem_id_tabname,
             Script.get_default_ui_unit(),
             self.preprocessor,
             photopea,
         )
-        return group, group.render(tabname, elem_id_tabname)
+        return group, group.render()
 
     def ui_batch_options(self, is_img2img: bool, elem_id_tabname: str):
         batch_option = gr.Radio(
@@ -375,6 +377,9 @@ class Script(scripts.Script, metaclass=(
     def build_control_model(p, unet, model) -> ControlModel:
         if model is None or model == 'None':
             raise RuntimeError(f"You have not selected any ControlNet Model.")
+
+        # Remove Hash from Model Name
+        model = model.split("[")[0].strip()
 
         model_path = global_state.cn_models.get(model, None)
         if model_path is None:
